@@ -1,3 +1,6 @@
+import re
+
+
 def tryParse(val, typ=float):
     try:
         return typ(val)
@@ -20,3 +23,10 @@ def listize(str, typ, delim='()'):
         for elem in raw_elem:
             final_list.append(typ(elem.strip()))
     return final_list
+
+
+def tryParseKey(raw_key):
+    """Returns None if raw key is not in #.# format"""
+    # See https://regex101.com/r/6G9MZD/1/
+    # for the regex data
+    return re.fullmatch(r'^(\d+)\.(\d+)$', raw_key)

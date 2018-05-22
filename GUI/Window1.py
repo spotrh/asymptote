@@ -1224,9 +1224,8 @@ class MainWindow1(Qw.QMainWindow):
             if self.autoMakeScript or Qw.QMessageBox.question(self, "Error Opening File", "File was not recognized as an xasy file.\n"
                 "Load as a script item?") == Qw.QMessageBox.Yes:
                 # try:
-                item = x2a.xasyScript(canvas=self.xasyDrawObj, engine=self.asyEngine)
                 f.seek(0)
-                item.setScript(f.read())
+                item = x2a.xasyScript(canvas=self.xasyDrawObj, engine=self.asyEngine, script=f.read())
                 # item.setKey()
                 self.fileItems.append(item)
                 # except:
