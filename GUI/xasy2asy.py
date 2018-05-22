@@ -67,7 +67,7 @@ class AsymptoteEngine:
 
         assert isinstance(args, list)
 
-        self.args = ['-noV', '-q','-inpipe=' + str(rx), '-outpipe=' + str(wa), '-o', oargs] + args
+        self.args = args + ['-noV', '-q', '-inpipe=' + str(rx), '-outpipe=' + str(wa), '-o ', oargs]
 
         self.asyPath = path
         self.asyProcess = None
@@ -85,9 +85,11 @@ class AsymptoteEngine:
 
     def __enter__(self):
         self.start()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
+        self.wait()
 
     @property
     def tempDirName(self):

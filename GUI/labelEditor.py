@@ -49,21 +49,23 @@ class labelEditor(Qw.QDialog):
             path = opt['asyPath']
 
         asyInput = """
+        file fout=output(mode='pipe');
         frame f;
         label(f, "{0}");
-        min(f);
-        max(f);
+        write(fout, min(f), newl);
+        write(fout, max(f), newl);
         shipout(f);
+        flush(fout);
         """
 
         with tempfile.TemporaryDirectory(prefix='xasylbl_') as tmpdir:
             tmpFile = os.path.join(tmpdir, 'lbl-{0}.svg'.format(str(uuid.uuid4())))
-            with x2a.AsymptoteEngine(path, customOutdir=tmpFile, args=['-f svg'], useStdStream=True) as asy:
+            with x2a.AsymptoteEngine(path, customOutdir=tmpFile, args=['-f svg']) as asy:
                 asy.ostream.write(asyInput.format(self.getText()))
                 asy.ostream.flush()
 
-                bounds_1 = asy.asyStdout.readline().decode('utf-8').strip()
-                bounds_2 = asy.asyStdout.readline().decode('utf-8').strip()
+                bounds_1 = asy.istream.readline().strip()
+                bounds_2 = asy.istream.readline().strip()
 
             min_bounds = xu.listize(bounds_1, (float, float))
             max_bounds = xu.listize(bounds_2, (float, float))
