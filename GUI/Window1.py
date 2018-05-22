@@ -331,7 +331,8 @@ class MainWindow1(Qw.QMainWindow):
         self.asyfyCanvas()
 
     def debugAddLabel(self):
-        testText = '$\\displaystyle{\\int_{\\varphi(F)} f = \\int_F (f \\circ \\varphi) \\left| \\det J_{\\varphi} \\right|}$'
+        testText = \
+            '$\\displaystyle{\\int_{\\varphi(F)} f = \\int_F (f \\circ \\varphi) \\left| \\det J_{\\varphi} \\right|}$'
         newPath = x2a.xasyText(testText, (0, 0), asyengine=self.asyEngine)
         self.fileItems.append(newPath)
         self.asyfyCanvas()
