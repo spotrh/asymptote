@@ -2,11 +2,15 @@ from pyUIClass.labelTextEditor import Ui_Dialog
 import PyQt5.QtWidgets as Qw
 import PyQt5.QtSvg as Qs
 import PyQt5.QtGui as Qg
+import PyQt5.QtCore as Qc
 import xasyArgs as xa
 import xasy2asy as x2a
 import xasyOptions as xo
+import xasyUtils as xu
+import tempfile
 import uuid
 import os
+
 
 class labelEditor(Qw.QDialog):
     def __init__(self):
@@ -19,6 +23,8 @@ class labelEditor(Qw.QDialog):
         self.ui.chkMathMode.stateChanged.connect(self.chkMathModeChecked)
         self.ui.btnPreview.clicked.connect(self.btnPreviewOnClick)
         self.ui.btnGetText.clicked.connect(self.btnGetTextOnClick)
+
+        self.svgPreview = None
 
     def chkMathModeChecked(self, checked):
         self.ui.cmbMathStyle.setEnabled(checked)
@@ -42,33 +48,73 @@ class labelEditor(Qw.QDialog):
             opt = xo.xasyOptions().load()
             path = opt['asyPath']
 
-        tmpFile = '/tmp/' + str(uuid.uuid4()) + '.svg'
-        asy = x2a.AsymptoteEngine(path, customOutdir=tmpFile, args=['-f svg'])
-        asy.start()
-        asy.ostream.write('label("{0}");\n'.format(self.getText()))
-        asy.ostream.flush()
-        asy.stop()
-        asy.wait()
+        asyInput = """
+        frame f;
+        label(f, "{0}");
+        min(f);
+        max(f);
+        shipout(f);
+        """
 
+        with tempfile.TemporaryDirectory(prefix='xasylbl_') as tmpdir:
+            tmpFile = os.path.join(tmpdir, 'lbl-{0}.svg'.format(str(uuid.uuid4())))
+            with x2a.AsymptoteEngine(path, customOutdir=tmpFile, args=['-f svg'], useStdStream=True) as asy:
+                asy.ostream.write(asyInput.format(self.getText()))
+                asy.ostream.flush()
+
+                bounds_1 = asy.asyStdout.readline().decode('utf-8').strip()
+                bounds_2 = asy.asyStdout.readline().decode('utf-8').strip()
+
+            min_bounds = xu.listize(bounds_1, (float, float))
+            max_bounds = xu.listize(bounds_2, (float, float))
+
+            new_rect = self.processBounds(min_bounds, max_bounds)
+
+            self.svgPreview = Qs.QSvgRenderer()
+            self.svgPreview.load(tmpFile)
+
+            self.drawPreview(new_rect)
+            # self.ui.lblLabelPreview.setSizePolicy(Qw.QSizePolicy.Ignored, Qw.QSizePolicy.Ignored)
+
+    def drawPreview(self, naturalBounds):
         img = Qg.QPixmap(self.ui.lblLabelPreview.size())
         img.fill(Qg.QColor.fromRgbF(1, 1, 1, 1))
-        self.ui.lblLabelPreview.setPixmap(img)
-        pnt = Qg.QPainter(img)
-        svgRender = Qs.QSvgRenderer()
+        if self.svgPreview is None:
+            pass
+        else:
+            with Qg.QPainter(img) as pnt:
+                scale_ratio = self.getIdealScaleRatio(naturalBounds, self.ui.lblLabelPreview.rect())
 
-        while not os.path.isfile(tmpFile):
-            continue
-
-        svgRender.load(tmpFile)
-        svgRender.render(pnt)
-
-        self.ui.lblLabelPreview.setPixmap(img)
-        pnt.end()
-
-        print('done')
-        os.remove(tmpFile)
+                pnt.translate(self.ui.lblLabelPreview.rect().center())
+                pnt.scale(scale_ratio, scale_ratio)
+                self.svgPreview.render(pnt, naturalBounds)
+            self.ui.lblLabelPreview.setPixmap(img)
 
 
+    def getIdealScaleRatio(self, rect, boundsRect):
+        assert isinstance(rect, (Qc.QRect, Qc.QRectF))
+        assert isinstance(rect, (Qc.QRect, Qc.QRectF))
+
+        magic_ratio = 0.50
+        idealRatioHeight = (magic_ratio * boundsRect.height()) / rect.height()
+        magicRatioWidth = 0.50
+
+        if idealRatioHeight * rect.width() > magicRatioWidth * boundsRect.width():
+            idealRatioWidth = (magicRatioWidth * boundsRect.width()) / rect.width()
+            idealRatio = min(idealRatioHeight, idealRatioWidth)
+        else:
+            idealRatio = idealRatioHeight
+        return idealRatio
+
+    def processBounds(self, minPt, maxPt):
+        p1x, p1y = minPt
+        p2x, p2y = maxPt
+
+        minPt = Qc.QPointF(p1x, p1y)
+        maxPt = Qc.QPointF(p2x, p2y)
+
+        newRect = Qc.QRectF(minPt, maxPt)
+        return newRect
 
 
     def btnGetTextOnClick(self):
